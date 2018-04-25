@@ -1,0 +1,61 @@
+"""
+1. Information extraction from PDF documents.
+"""
+# importing required packages
+import os
+import re
+import nltk
+from tika import parser
+
+# path_to_document_location
+directory = "path_to_document_location"
+
+# traversing through all the docs in the directory
+for filename in os.listdir(directory):
+    # filtering the docs ending with .pdf's and .PDF's
+    if filename.endswith(".pdf") or filename.endswith(".PDF"): 
+        # building the path to each file
+        file = os.path.join(directory, filename)
+        print(file)
+        print("===============================================================")
+        # using tika's parser to extract text from pdf
+        text = parser.from_file(file)
+        # extracting required content from tika's output
+        text=text["content"]
+        #print(text)
+        text = text.replace("\n","")
+        #print(text)
+        # extracting the part of text lying between "Rounding" and "Valuation and Timing" keywords
+        result = re.search("%s(.*)%s" % ("Rounding", "Valuation and Timing"), text).group(1)
+        print(result)
+        # sentences tokenizer
+        sentences = nltk.sent_tokenize(str(result))
+        #print(sentences)
+        # word tokenize each sentence
+        sentences = [nltk.word_tokenize(sent) for sent in sentences]
+        #print(sentences)
+        # pos tagging each sentence
+        sentences = [nltk.pos_tag(sent) for sent in sentences]
+        #print(sentences)
+        # defining a grammar with a regular-expression rule 
+        grammar = r"""
+        NP: {<DT><NNP><NNP>} 
+        VP: {<MD><VB><VBN>} 
+        PP: {<R.*>}
+        CLAUSE: {<NP>*<VP><PP>}
+        """
+        # creating a chunk parser
+        cp = nltk.RegexpParser(grammar)
+        IN = re.compile(r'.*and the.*')
+        for sent in sentences:
+            #print(sent)
+            # extracting relations
+            for rel in nltk.sem.extract_rels('ORG', 'ORG', sent, pattern = IN):
+                print(nltk.sem.rtuple(rel))
+            # applying a NER classifier to recognise named entities
+            print(nltk.ne_chunk(sent))
+            # applying chunk parser
+            result = cp.parse(sent)
+            #print(result)
+            #result.draw()
+        print()
