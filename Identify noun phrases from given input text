@@ -1,0 +1,63 @@
+"""
+2. Identify noun phrases from given input text.
+"""
+# importing required packages
+import os
+import re
+import nltk
+from tika import parser
+
+# path_to_document_location
+directory = "C:/Users/mchai/Downloads/stride/"
+
+# function to extract grammer pattern from text
+def grammerPatternExtraction(chunkName,attribute_list):
+    # for each phrase sub tree in the parse tree
+    for subtree in tree.subtrees(filter=lambda t: t.label() == chunkName):
+        # appending the phrase from a list of part-of-speech tagged words
+        attribute_list.append(" ".join([word for word, pos in subtree]))
+    return attribute_list
+
+# traversing through all the docs in the directory
+for filename in os.listdir(directory):
+    # filtering the docs ending with .pdf's and .PDF's
+    if filename.endswith(".pdf") or filename.endswith(".PDF"): 
+        # building the path to each file
+        file = os.path.join(directory, filename)
+        print(filename)
+        print("===============================================================")
+        # using tika's parser to extract text from pdf
+        text = parser.from_file(file)
+        # extracting required content from tika's output
+        text=text["content"]
+        text = text.replace("\n","")
+        #print(text)
+        # sentences tokenizer
+        sentences = nltk.sent_tokenize(str(text))
+        # word tokenize each sentence
+        sentences = [nltk.word_tokenize(sent) for sent in sentences]
+        # pos tagging each sentence
+        sentences = [nltk.pos_tag(sent) for sent in sentences]
+        #print(sentences)
+        # defining a grammar with a regular-expression rule 
+        grammar = r"""
+        NP: {<NN.*>}
+        """
+        # creating a chunk parser
+        cp = nltk.RegexpParser(grammar)
+        # looping over all the sentences from extracted text
+        noun_phrases = []
+        for sent in sentences:
+            tree = cp.parse(sent)
+            # calling grammerPatternExtraction method to extract the words which has required chunk grammer patterns
+            noun_phrases = grammerPatternExtraction("NP",noun_phrases)
+        # filterng list elements with character length one
+        noun_phrases = [word for word in noun_phrases if len(word)>1]
+        # filtering alphanumeric and numeric elements from list
+        noun_phrases = [word for word in noun_phrases if word.isalpha()]
+        # printing the length of list
+        print("No. of word phrases in the documnet : "+str(len(list(set(noun_phrases)))))
+        # printing the final list of noun phrases from documents
+        print("Noun phrases in the document : ")
+        print(list(set(noun_phrases)))
+        print("---------------------------")
