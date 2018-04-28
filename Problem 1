@@ -8,7 +8,15 @@ import nltk
 from tika import parser
 
 # path_to_document_location
-directory = "path_to_document_location"
+directory = "C:/Users/mchai/Downloads/stride/"
+
+# function to extract grammer pattern from text
+def grammerPatternExtraction(chunkName,attribute_list):
+    # for each phrase sub tree in the parse tree
+    for subtree in tree.subtrees(filter=lambda t: t.label() == chunkName):
+        # appending the phrase from a list of part-of-speech tagged words
+        attribute_list.append(" ".join([word for word, pos in subtree]))
+    return attribute_list
 
 # traversing through all the docs in the directory
 for filename in os.listdir(directory):
@@ -16,24 +24,20 @@ for filename in os.listdir(directory):
     if filename.endswith(".pdf") or filename.endswith(".PDF"): 
         # building the path to each file
         file = os.path.join(directory, filename)
-        print(file)
+        print(filename)
         print("===============================================================")
         # using tika's parser to extract text from pdf
         text = parser.from_file(file)
         # extracting required content from tika's output
         text=text["content"]
-        #print(text)
         text = text.replace("\n","")
         #print(text)
         # extracting the part of text lying between "Rounding" and "Valuation and Timing" keywords
         result = re.search("%s(.*)%s" % ("Rounding", "Valuation and Timing"), text).group(1)
-        print(result)
         # sentences tokenizer
         sentences = nltk.sent_tokenize(str(result))
-        #print(sentences)
         # word tokenize each sentence
         sentences = [nltk.word_tokenize(sent) for sent in sentences]
-        #print(sentences)
         # pos tagging each sentence
         sentences = [nltk.pos_tag(sent) for sent in sentences]
         #print(sentences)
@@ -42,20 +46,60 @@ for filename in os.listdir(directory):
         NP: {<DT><NNP><NNP>} 
         VP: {<MD><VB><VBN>} 
         PP: {<R.*>}
-        CLAUSE: {<NP>*<VP><PP>}
+        ND: {<NNP><CD>}
+            {<NNP><,><NNP>}
         """
         # creating a chunk parser
         cp = nltk.RegexpParser(grammar)
-        IN = re.compile(r'.*and the.*')
+        # looping over all the sentences from extracted text
         for sent in sentences:
-            #print(sent)
-            # extracting relations
-            for rel in nltk.sem.extract_rels('ORG', 'ORG', sent, pattern = IN):
-                print(nltk.sem.rtuple(rel))
-            # applying a NER classifier to recognise named entities
-            print(nltk.ne_chunk(sent))
-            # applying chunk parser
-            result = cp.parse(sent)
-            #print(result)
+            tree = cp.parse(sent)
+            amount_type=[]
+            relation=[]
+            indicator=[]
+            amount=[]
+            currancy_pattern = "USD|INR|EUR|GBP"
+            # calling grammerPatternExtraction method to extract the words which has required chunk grammer patterns
+            amount_type = grammerPatternExtraction("NP",amount_type)
+            relation = grammerPatternExtraction("VP",relation)
+            indicator = grammerPatternExtraction("PP",indicator)
+            amount = grammerPatternExtraction("ND",amount)
+            #extracting required keywords and relations from list of extracted words in grammerPatternExtraction
+            if len(amount_type)>0:
+                print(amount_type[0])
+            # skipping the sentences which does't have required grammer patterns
+            else:
+                continue
+            if len(relation)>0 and len(indicator)>0:
+                print(relation[0]+" : "+indicator[0])
+            # skipping the sentences which does't have required grammer patterns
+            else:
+                continue
+            if len(amount)>0:
+                currancy = "".join(re.findall(currancy_pattern,amount[0]))
+                print("currancy : "+currancy)
+                print("amount :"+amount[0].replace(currancy,""))
+            # skipping the sentences which does't have required grammer patterns
+            else:
+                continue
+            print("---------------------------")
+            if len(amount_type)>1:
+                print(amount_type[1])
+            if len(relation)>0:
+                if len(indicator)>1:
+                    print(relation[0]+" : "+indicator[1])
+                elif len(indicator)>0:
+                    print(indicator[0]+" : "+indicator[0])
+            # separating currancy and amount from extracted amount
+            if len(amount)>1:
+                currancy = "".join(re.findall(currancy_pattern,amount[1]))
+                print("currancy : "+currancy)
+                print("amount :"+amount[1].replace(currancy,""))
+            elif len(amount)>0:
+                currancy = "".join(re.findall(currancy_pattern,amount[0]))
+                print("currancy : "+currancy)
+                print("amount :"+amount[0].replace(currancy,""))
+            #print(tree)
             #result.draw()
+            print("---------------------------")
         print()
